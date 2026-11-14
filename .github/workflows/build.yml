@@ -1,0 +1,29 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zip dosyasini ac
+        run: |
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          unzip -q "$ZIP" -d work
+          ls work
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Test ve derleme
+        working-directory: work/VancedPlayer
+        run: gradle testDebugUnitTest assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VancedPlayer-debug-apk
+          path: work/VancedPlayer/app/build/outputs/apk/debug/*.apk
