@@ -8,58 +8,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Zip dosyasini ac
-        id: zip
         run: |
-          ZIP=$(ls -1 *.zip 2>/dev/null | sed -E 's/.*Phase0*([0-9]+).*/\1 &/' | sort -n | tail -n 1 | cut -d' ' -f2- || true)
-          if [ -z "$ZIP" ]; then
-            echo "Depoda zip yok, derleme atlandi."
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "Kullanilan zip: $ZIP"
+          ZIP=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
           unzip -q "$ZIP" -d work
-          echo "found=true" >> "$GITHUB_OUTPUT"
-
+          ls work
       - uses: actions/setup-java@v4
-        if: steps.zip.outputs.found == 'true'
         with:
           distribution: temurin
           java-version: 17
-
       - uses: gradle/actions/setup-gradle@v4
-        if: steps.zip.outputs.found == 'true'
         with:
           gradle-version: 8.7
-
       - name: Test ve derleme
-        if: steps.zip.outputs.found == 'true'
         working-directory: work/VancedPlayer
-        run: |
-          set +e
-          gradle testDebugUnitTest assembleDebug --stacktrace --console=plain 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
-          STATUS=${PIPESTATUS[0]}
-          if [ "$STATUS" -ne 0 ]; then
-            {
-              echo "## Derleme hatasi (bu kutuyu ekran goruntusu al)"
-              echo '```'
-              grep -E "^e: |error:|FAILED|What went wrong|Could not|OutOfMemory|Execution failed" -A4 "$GITHUB_WORKSPACE/build.log" | head -60
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit "$STATUS"
-
-      - name: Log dosyasini yukle
-        if: always() && steps.zip.outputs.found == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
-
-      - name: APK yukle
-        if: success() && steps.zip.outputs.found == 'true'
-        uses: actions/upload-artifact@v4
+        run: gradle testDebugUnitTest assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
         with:
           name: VancedPlayer-debug-apk
           path: work/VancedPlayer/app/build/outputs/apk/debug/*.apk
